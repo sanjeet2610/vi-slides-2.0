@@ -1,18 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import type { Question, StoredUser } from "../types";
 
 const API = "http://localhost:5000";
 
+function parseStoredUser(): StoredUser | null {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null") as StoredUser | null;
+  } catch {
+    return null;
+  }
+}
+
 export default function TeacherDashboard() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const user = parseStoredUser();
   const token = localStorage.getItem("token");
 
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
-  const [answerDrafts, setAnswerDrafts] = useState({});
+  const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
   const [submittingId, setSubmittingId] = useState("");
   const [deletingId, setDeletingId] = useState("");
 
@@ -29,10 +38,17 @@ export default function TeacherDashboard() {
   const fetchQuestions = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${API}/api/questions`, authHeaders);
+      const { data } = await axios.get<{ questions: Question[] }>(
+        `${API}/api/questions`,
+        authHeaders
+      );
       setQuestions(data.questions || []);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to fetch questions");
+      if (axios.isAxiosError(err)) {
+        alert((err.response?.data as { message?: string })?.message || "Failed to fetch questions");
+      } else {
+        alert("Failed to fetch questions");
+      }
     } finally {
       setLoading(false);
     }
@@ -43,7 +59,7 @@ export default function TeacherDashboard() {
       navigate("/login");
       return;
     }
-    fetchQuestions();
+    void fetchQuestions();
   }, []);
 
   const filteredQuestions = useMemo(() => {
@@ -51,11 +67,11 @@ export default function TeacherDashboard() {
     return questions.filter((q) => q.status === "pending");
   }, [questions, showPendingOnly]);
 
-  const handleDraftChange = (id, value) => {
+  const handleDraftChange = (id: string, value: string) => {
     setAnswerDrafts((prev) => ({ ...prev, [id]: value }));
   };
 
-  const submitManualAnswer = async (questionId) => {
+  const submitManualAnswer = async (questionId: string) => {
     const answer = (answerDrafts[questionId] || "").trim();
     if (!answer) {
       alert("Please enter an answer.");
@@ -73,13 +89,17 @@ export default function TeacherDashboard() {
       setAnswerDrafts((prev) => ({ ...prev, [questionId]: "" }));
       await fetchQuestions();
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to submit answer");
+      if (axios.isAxiosError(err)) {
+        alert((err.response?.data as { message?: string })?.message || "Failed to submit answer");
+      } else {
+        alert("Failed to submit answer");
+      }
     } finally {
       setSubmittingId("");
     }
   };
 
-  const deleteQuestion = async (questionId) => {
+  const deleteQuestion = async (questionId: string) => {
     const ok = window.confirm("Delete this question permanently?");
     if (!ok) return;
 
@@ -93,7 +113,11 @@ export default function TeacherDashboard() {
         return next;
       });
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to delete question");
+      if (axios.isAxiosError(err)) {
+        alert((err.response?.data as { message?: string })?.message || "Failed to delete question");
+      } else {
+        alert("Failed to delete question");
+      }
     } finally {
       setDeletingId("");
     }
@@ -103,7 +127,7 @@ export default function TeacherDashboard() {
     <div>
       <h1>Teacher Dashboard</h1>
       <p>Welcome, {user?.name || "Teacher"}!</p>
-      <button onClick={logout}>Logout</button>
+      <button type="button" onClick={logout}>Logout</button>
 
       <hr />
 
@@ -116,7 +140,7 @@ export default function TeacherDashboard() {
         Show pending only
       </label>
 
-      <button onClick={fetchQuestions} style={{ marginLeft: "8px" }}>
+      <button type="button" onClick={() => void fetchQuestions()} style={{ marginLeft: "8px" }}>
         Refresh
       </button>
 
@@ -151,7 +175,8 @@ export default function TeacherDashboard() {
                     />
                     <br />
                     <button
-                      onClick={() => submitManualAnswer(q._id)}
+                      type="button"
+                      onClick={() => void submitManualAnswer(q._id)}
                       disabled={submittingId === q._id}
                     >
                       {submittingId === q._id ? "Submitting..." : "Submit Answer"}
@@ -159,7 +184,8 @@ export default function TeacherDashboard() {
                   </div>
                 )}
                 <button
-                  onClick={() => deleteQuestion(q._id)}
+                  type="button"
+                  onClick={() => void deleteQuestion(q._id)}
                   disabled={deletingId === q._id}
                   style={{ marginLeft: canAnswer ? "8px" : "0" }}
                 >

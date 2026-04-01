@@ -1,7 +1,7 @@
-const express = require("express");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+import express, { type Request, type Response } from "express";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import User from "../models/User";
 
 const router = express.Router();
 
@@ -10,10 +10,14 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is missing in environment variables");
 }
 
-// POST /api/auth/register
-router.post("/register", async (req, res) => {
+router.post("/register", async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role } = req.body as {
+      name?: string;
+      email?: string;
+      password?: string;
+      role?: string;
+    };
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email, and password are required" });
@@ -34,7 +38,7 @@ router.post("/register", async (req, res) => {
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: role || "student",
+      role: (role as "student" | "teacher") || "student",
     });
 
     return res.status(201).json({
@@ -47,14 +51,14 @@ router.post("/register", async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: "Registration failed", error: error.message });
+    const message = error instanceof Error ? error.message : String(error);
+    return res.status(500).json({ message: "Registration failed", error: message });
   }
 });
 
-// POST /api/auth/login
-router.post("/login", async (req, res) => {
+router.post("/login", async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body as { email?: string; password?: string };
 
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
@@ -91,8 +95,9 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: "Login failed", error: error.message });
+    const message = error instanceof Error ? error.message : String(error);
+    return res.status(500).json({ message: "Login failed", error: message });
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -9,21 +9,20 @@ if (!GEMINI_API_KEY) {
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
-async function generateAnswer(question) {
-  try {
-    if (!question || !question.trim()) {
-      throw new Error("Question is required");
-    }
+export async function generateAnswer(question: string): Promise<string> {
+  if (!question || !question.trim()) {
+    throw new Error("Question is required");
+  }
 
+  try {
     const result = await model.generateContent(question.trim());
     const response = await result.response;
     const text = response.text();
 
     return text || "I could not generate an answer right now.";
   } catch (error) {
-    console.error("Gemini generation failed:", error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Gemini generation failed:", message);
     throw new Error("Failed to generate AI answer");
   }
 }
-
-module.exports = { generateAnswer };

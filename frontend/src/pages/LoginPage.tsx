@@ -1,31 +1,42 @@
-import { useState } from "react";
+import { type ChangeEvent, type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import type { Role, StoredUser } from "../types";
 
 const API = "http://localhost:5000";
+
+interface LoginResponse {
+  token: string;
+  user: StoredUser;
+}
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       setLoading(true);
-      const { data } = await axios.post(`${API}/api/auth/login`, form);
+      const { data } = await axios.post<LoginResponse>(`${API}/api/auth/login`, form);
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      if (data.user.role === "teacher") navigate("/teacher");
+      const role = data.user.role as Role;
+      if (role === "teacher") navigate("/teacher");
       else navigate("/student");
     } catch (err) {
-      alert(err?.response?.data?.message || "Login failed");
+      if (axios.isAxiosError(err)) {
+        alert((err.response?.data as { message?: string })?.message || "Login failed");
+      } else {
+        alert("Login failed");
+      }
     } finally {
       setLoading(false);
     }

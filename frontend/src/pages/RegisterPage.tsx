@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { type ChangeEvent, type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import type { Role } from "../types";
 
 const API = "http://localhost:5000";
 
@@ -9,16 +10,22 @@ export default function RegisterPage() {
     name: "",
     email: "",
     password: "",
-    role: "student",
+    role: "student" as Role,
   });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === "role" ? (value as Role) : value,
+    }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       setLoading(true);
@@ -26,7 +33,11 @@ export default function RegisterPage() {
       alert("Registration successful. Please login.");
       navigate("/login");
     } catch (err) {
-      alert(err?.response?.data?.message || "Register failed");
+      if (axios.isAxiosError(err)) {
+        alert((err.response?.data as { message?: string })?.message || "Register failed");
+      } else {
+        alert("Register failed");
+      }
     } finally {
       setLoading(false);
     }

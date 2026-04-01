@@ -1,19 +1,28 @@
-import { useEffect, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import type { Question, StoredUser } from "../types";
 
 const API = "http://localhost:5000";
 
+function parseStoredUser(): StoredUser | null {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null") as StoredUser | null;
+  } catch {
+    return null;
+  }
+}
+
 export default function StudentDashboard() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const user = parseStoredUser();
   const token = localStorage.getItem("token");
 
   const [form, setForm] = useState({
     text: "",
     isAnonymous: false,
   });
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
 
@@ -32,10 +41,17 @@ export default function StudentDashboard() {
   const fetchMyQuestions = async () => {
     try {
       setLoadingQuestions(true);
-      const { data } = await axios.get(`${API}/api/questions/my`, authHeaders);
+      const { data } = await axios.get<{ questions: Question[] }>(
+        `${API}/api/questions/my`,
+        authHeaders
+      );
       setQuestions(data.questions || []);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to fetch questions");
+      if (axios.isAxiosError(err)) {
+        alert((err.response?.data as { message?: string })?.message || "Failed to fetch questions");
+      } else {
+        alert("Failed to fetch questions");
+      }
     } finally {
       setLoadingQuestions(false);
     }
@@ -46,18 +62,21 @@ export default function StudentDashboard() {
       navigate("/login");
       return;
     }
-    fetchMyQuestions();
+    void fetchMyQuestions();
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value, type } = e.target;
+    const checked = "checked" in e.target ? e.target.checked : false;
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const handleSubmitQuestion = async (e) => {
+  const handleSubmitQuestion = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!form.text.trim()) {
@@ -67,7 +86,7 @@ export default function StudentDashboard() {
 
     try {
       setSubmitting(true);
-      const { data } = await axios.post(
+      const { data } = await axios.post<{ question?: Question }>(
         `${API}/api/questions`,
         {
           text: form.text.trim(),
@@ -79,12 +98,17 @@ export default function StudentDashboard() {
       setForm({ text: "", isAnonymous: false });
 
       if (data?.question) {
-        setQuestions((prev) => [data.question, ...prev]);
+        const created = data.question;
+        setQuestions((prev) => [created, ...prev]);
       } else {
-        fetchMyQuestions();
+        void fetchMyQuestions();
       }
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to submit question");
+      if (axios.isAxiosError(err)) {
+        alert((err.response?.data as { message?: string })?.message || "Failed to submit question");
+      } else {
+        alert("Failed to submit question");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -94,7 +118,7 @@ export default function StudentDashboard() {
     <div>
       <h1>Student Dashboard</h1>
       <p>Welcome, {user?.name || "Student"}!</p>
-      <button onClick={logout}>Logout</button>
+      <button type="button" onClick={logout}>Logout</button>
 
       <hr />
 
